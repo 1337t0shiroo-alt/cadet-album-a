@@ -6,9 +6,8 @@
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <style>
-      body { margin: 0; overflow: hidden; }
+      body { margin: 0; overflow: hidden; background: #000; }
       
-      /* Кнопка старта */
       #startButton {
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
         z-index: 10000; padding: 20px 40px; font-size: 20px;
@@ -16,23 +15,29 @@
         box-shadow: 0 5px 20px rgba(0,0,0,0.4); cursor: pointer;
       }
 
-      /* Кнопка звука */
       #muteButton {
         position: fixed; bottom: 20px; right: 20px;
-        z-index: 10000; width: 50px; height: 50px;
+        z-index: 10000; width: 60px; height: 60px;
         background: rgba(0, 45, 94, 0.8); color: white;
         border: none; border-radius: 50%; cursor: pointer;
-        display: none; /* Появится только когда видео пойдет */
-        font-size: 24px; line-height: 50px; text-align: center;
+        display: none; font-size: 24px;
+      }
+
+      #status {
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        z-index: 10000; color: white; font-family: sans-serif;
+        background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px;
+        pointer-events: none; display: none;
       }
     </style>
   </head>
   <body>
-    <button id="startButton">ЗАПУСТИТЬ АЛЬБОМ</button>
+    <div id="status">Поиск фотографии...</div>
+    <button id="startButton">ОЖИВИТЬ ФОТО</button>
     <button id="muteButton">🔇</button>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;" 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -46,7 +51,9 @@
             crossorigin="anonymous" 
             playsinline 
             webkit-playsinline 
-            muted> </video>
+            muted 
+            preload="auto">
+        </video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -59,41 +66,52 @@
     <script>
       const startButton = document.querySelector('#startButton');
       const muteButton = document.querySelector('#muteButton');
+      const statusDiv = document.querySelector('#status');
       const sceneEl = document.querySelector('a-scene');
       const video = document.querySelector('#ar-video');
 
-      // Запуск AR
+      let isTargetVisible = false;
+
+      // Запуск системы
       startButton.addEventListener('click', () => {
-        const {systems} = sceneEl;
-        systems['mindar-image-system'].start();
+        sceneEl.systems['mindar-image-system'].start();
         
+        // "Толкаем" видео при первом клике
         video.play().then(() => {
           video.pause();
-          video.currentTime = 0;
         });
 
         startButton.style.display = 'none';
-        muteButton.style.display = 'block'; // Показываем кнопку звука
+        muteButton.style.display = 'block';
+        statusDiv.style.display = 'block';
       });
 
-      // Логика кнопки звука
+      // Логика звука
       muteButton.addEventListener('click', () => {
-        if (video.muted) {
-          video.muted = false;
-          muteButton.innerText = '🔊';
-        } else {
-          video.muted = true;
-          muteButton.innerText = '🔇';
-        }
+        video.muted = !video.muted;
+        muteButton.innerText = video.muted ? '🔇' : '🔊';
       });
 
+      // События трекинга
       sceneEl.addEventListener('targetFound', () => {
-        video.play();
+        isTargetVisible = true;
+        statusDiv.style.display = 'none';
+        video.play().catch(e => console.log("Ошибка воспроизведения:", e));
       });
 
       sceneEl.addEventListener('targetLost', () => {
+        isTargetVisible = false;
+        statusDiv.style.display = 'block';
         video.pause();
       });
+
+      // ЦИКЛИЧЕСКАЯ ПРОВЕРКА (каждые 500мс)
+      // Если маркер в кадре, а видео не играет — принудительно запускаем
+      setInterval(() => {
+        if (isTargetVisible && video.paused) {
+          video.play();
+        }
+      }, 500);
     </script>
   </body>
 </html>
