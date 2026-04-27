@@ -9,14 +9,14 @@
       body { margin: 0; overflow: hidden; }
       #startButton {
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        z-index: 10000; padding: 15px 30px; font-size: 18px;
-        background: #002d5e; color: white; border: none; border-radius: 8px; cursor: pointer;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 10000; padding: 20px 40px; font-size: 20px;
+        background: #002d5e; color: white; border: none; border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.4); cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <button id="startButton">Нажмите, чтобы начать</button>
+    <button id="startButton">ЗАПУСТИТЬ АЛЬБОМ</button>
 
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;" 
@@ -49,29 +49,44 @@
       const sceneEl = document.querySelector('a-scene');
       const video = document.querySelector('#ar-video');
 
+      // 1. Предварительная настройка видео
+      video.muted = true;
+      video.pause();
+
       startButton.addEventListener('click', () => {
-        // Запускаем систему AR
         const {systems} = sceneEl;
         systems['mindar-image-system'].start();
         
-        // Магия: "прогреваем" видео при первом клике, чтобы браузер разрешил его играть
+        // 2. Важный жест: запускаем и тут же ставим на паузу, чтобы "разбудить" плеер
         video.play().then(() => {
-            video.pause(); // Сразу ставим на паузу до нахождения маркера
-        });
+          video.pause();
+          video.currentTime = 0;
+        }).catch(err => console.log("Ошибка запуска:", err));
 
         startButton.style.display = 'none';
       });
 
-      // Когда фото в объективе — включаем видео
+      // 3. Логика появления видео
       sceneEl.addEventListener('targetFound', () => {
-        console.log("Вижу цель");
-        video.play();
+        console.log("Маркер найден");
+        video.muted = true; // Еще раз на всякий случай
+        
+        // Небольшая задержка перед игрой часто помогает стабильности
+        setTimeout(() => {
+            video.play().catch(e => {
+                console.log("Автозапуск не удался, пробуем еще раз...");
+                video.play();
+            });
+        }, 100);
       });
 
-      // Когда убрали телефон от фото — выключаем (экономим ресурсы)
       sceneEl.addEventListener('targetLost', () => {
-        console.log("Цель потеряна");
         video.pause();
+      });
+
+      // 4. Если пользователь тапнет по экрану во время просмотра - видео принудительно заиграет
+      window.addEventListener('click', () => {
+          if (video.paused) video.play();
       });
     </script>
   </body>
