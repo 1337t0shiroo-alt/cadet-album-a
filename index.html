@@ -5,74 +5,51 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image.prod.js"></script>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
-    
     <style>
       body { margin: 0; overflow: hidden; }
-      /* Подсказка для пользователя, пока камера загружается */
-      #ui {
-        position: fixed; top: 10px; left: 10px; z-index: 1000;
-        color: white; font-family: sans-serif; background: rgba(0,0,0,0.5);
-        padding: 10px; border-radius: 5px; pointer-events: none;
+      #startButton {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        z-index: 10000; padding: 15px 30px; font-size: 18px;
+        background: #002d5e; color: white; border: none; border-radius: 8px; cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <div id="ui">Наведите камеру на фото</div>
+    <button id="startButton">Начать просмотр</button>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind;" 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
       
       <a-assets>
-        <video 
-          id="ar-video" 
-          src="./14363020167789.mp4" 
-          preload="auto" 
-          loop="true" 
-          crossorigin="anonymous" 
-          webkit-playsinline 
-          playsinline>
-        </video>
+        <video id="ar-video" src="./14363020167789.mp4" loop="true" crossorigin="anonymous" playsinline muted></video>
       </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-video 
-          src="#ar-video" 
-          width="1" 
-          height="1.4" 
-          position="0 0 0">
-        </a-video>
+        <a-video src="#ar-video" width="1" height="1.4" position="0 0 0"></a-video>
       </a-entity>
     </a-scene>
 
     <script>
-      const video = document.querySelector('#ar-video');
+      const startButton = document.querySelector('#startButton');
       const sceneEl = document.querySelector('a-scene');
-      const ui = document.querySelector('#ui');
+      const video = document.querySelector('#ar-video');
 
-      // Логика воспроизведения: видео запускается только когда фото найдено
-      sceneEl.addEventListener('targetFound', event => {
-        console.log("Фото найдено");
-        ui.style.display = 'none';
-        video.play();
+      startButton.addEventListener('click', () => {
+        const {systems} = sceneEl;
+        systems['mindar-image-system'].start(); // Запуск AR после клика
+        startButton.style.display = 'none';
+        video.play(); // Предварительный запуск видео
       });
 
-      sceneEl.addEventListener('targetLost', event => {
-        console.log("Фото потеряно");
-        ui.style.display = 'block';
-        video.pause();
-      });
-
-      // Попытка принудительного запуска при первом клике (требование браузеров)
-      window.addEventListener('click', () => {
+      sceneEl.addEventListener('targetFound', () => {
         video.play();
-        video.pause();
-      }, {once: true});
+      });
     </script>
   </body>
 </html>
