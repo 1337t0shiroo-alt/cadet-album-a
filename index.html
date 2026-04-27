@@ -7,16 +7,29 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <style>
       body { margin: 0; overflow: hidden; }
+      
+      /* Кнопка старта */
       #startButton {
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
         z-index: 10000; padding: 20px 40px; font-size: 20px;
         background: #002d5e; color: white; border: none; border-radius: 12px;
         box-shadow: 0 5px 20px rgba(0,0,0,0.4); cursor: pointer;
       }
+
+      /* Кнопка звука */
+      #muteButton {
+        position: fixed; bottom: 20px; right: 20px;
+        z-index: 10000; width: 50px; height: 50px;
+        background: rgba(0, 45, 94, 0.8); color: white;
+        border: none; border-radius: 50%; cursor: pointer;
+        display: none; /* Появится только когда видео пойдет */
+        font-size: 24px; line-height: 50px; text-align: center;
+      }
     </style>
   </head>
   <body>
     <button id="startButton">ЗАПУСТИТЬ АЛЬБОМ</button>
+    <button id="muteButton">🔇</button>
 
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;" 
@@ -33,8 +46,7 @@
             crossorigin="anonymous" 
             playsinline 
             webkit-playsinline 
-            muted>
-        </video>
+            muted> </video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -46,47 +58,41 @@
 
     <script>
       const startButton = document.querySelector('#startButton');
+      const muteButton = document.querySelector('#muteButton');
       const sceneEl = document.querySelector('a-scene');
       const video = document.querySelector('#ar-video');
 
-      // 1. Предварительная настройка видео
-      video.muted = true;
-      video.pause();
-
+      // Запуск AR
       startButton.addEventListener('click', () => {
         const {systems} = sceneEl;
         systems['mindar-image-system'].start();
         
-        // 2. Важный жест: запускаем и тут же ставим на паузу, чтобы "разбудить" плеер
         video.play().then(() => {
           video.pause();
           video.currentTime = 0;
-        }).catch(err => console.log("Ошибка запуска:", err));
+        });
 
         startButton.style.display = 'none';
+        muteButton.style.display = 'block'; // Показываем кнопку звука
       });
 
-      // 3. Логика появления видео
+      // Логика кнопки звука
+      muteButton.addEventListener('click', () => {
+        if (video.muted) {
+          video.muted = false;
+          muteButton.innerText = '🔊';
+        } else {
+          video.muted = true;
+          muteButton.innerText = '🔇';
+        }
+      });
+
       sceneEl.addEventListener('targetFound', () => {
-        console.log("Маркер найден");
-        video.muted = true; // Еще раз на всякий случай
-        
-        // Небольшая задержка перед игрой часто помогает стабильности
-        setTimeout(() => {
-            video.play().catch(e => {
-                console.log("Автозапуск не удался, пробуем еще раз...");
-                video.play();
-            });
-        }, 100);
+        video.play();
       });
 
       sceneEl.addEventListener('targetLost', () => {
         video.pause();
-      });
-
-      // 4. Если пользователь тапнет по экрану во время просмотра - видео принудительно заиграет
-      window.addEventListener('click', () => {
-          if (video.paused) video.play();
       });
     </script>
   </body>
