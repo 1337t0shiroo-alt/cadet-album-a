@@ -11,11 +11,12 @@
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
         z-index: 10000; padding: 15px 30px; font-size: 18px;
         background: #002d5e; color: white; border: none; border-radius: 8px; cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
       }
     </style>
   </head>
   <body>
-    <button id="startButton">Начать просмотр</button>
+    <button id="startButton">Нажмите, чтобы начать</button>
 
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;" 
@@ -25,7 +26,15 @@
       device-orientation-permission-ui="enabled: false">
       
       <a-assets>
-        <video id="ar-video" src="./14363020167789.mp4" loop="true" crossorigin="anonymous" playsinline muted></video>
+        <video 
+            id="ar-video" 
+            src="./14363020167789.mp4" 
+            loop="true" 
+            crossorigin="anonymous" 
+            playsinline 
+            webkit-playsinline 
+            muted>
+        </video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -41,14 +50,28 @@
       const video = document.querySelector('#ar-video');
 
       startButton.addEventListener('click', () => {
+        // Запускаем систему AR
         const {systems} = sceneEl;
-        systems['mindar-image-system'].start(); // Запуск AR после клика
+        systems['mindar-image-system'].start();
+        
+        // Магия: "прогреваем" видео при первом клике, чтобы браузер разрешил его играть
+        video.play().then(() => {
+            video.pause(); // Сразу ставим на паузу до нахождения маркера
+        });
+
         startButton.style.display = 'none';
-        video.play(); // Предварительный запуск видео
       });
 
+      // Когда фото в объективе — включаем видео
       sceneEl.addEventListener('targetFound', () => {
+        console.log("Вижу цель");
         video.play();
+      });
+
+      // Когда убрали телефон от фото — выключаем (экономим ресурсы)
+      sceneEl.addEventListener('targetLost', () => {
+        console.log("Цель потеряна");
+        video.pause();
       });
     </script>
   </body>
