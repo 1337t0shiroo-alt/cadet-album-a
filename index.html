@@ -7,37 +7,24 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <style>
       body { margin: 0; overflow: hidden; background: #000; }
-      
       #startButton {
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
         z-index: 10000; padding: 20px 40px; font-size: 20px;
-        background: #002d5e; color: white; border: none; border-radius: 12px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.4); cursor: pointer;
+        background: #002d5e; color: white; border: none; border-radius: 12px; cursor: pointer;
       }
-
       #muteButton {
-        position: fixed; bottom: 20px; right: 20px;
-        z-index: 10000; width: 60px; height: 60px;
-        background: rgba(0, 45, 94, 0.8); color: white;
-        border: none; border-radius: 50%; cursor: pointer;
-        display: none; font-size: 24px;
-      }
-
-      #status {
-        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-        z-index: 10000; color: white; font-family: sans-serif;
-        background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px;
-        pointer-events: none; display: none;
+        position: fixed; bottom: 20px; right: 20px; z-index: 10000;
+        width: 60px; height: 60px; background: rgba(0,45,94,0.8);
+        color: white; border: none; border-radius: 50%; display: none; font-size: 24px;
       }
     </style>
   </head>
   <body>
-    <div id="status">Поиск фотографии...</div>
     <button id="startButton">ОЖИВИТЬ ФОТО</button>
     <button id="muteButton">🔇</button>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; maxTrack: 1;" 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; filterMinCF:0.001; filterBeta: 0.01;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -59,59 +46,54 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-video src="#ar-video" width="1" height="1.4" position="0 0 0"></a-video>
+        <a-video id="ar-video-display" src="#ar-video" width="1" height="1.4" position="0 0 0"></a-video>
       </a-entity>
     </a-scene>
 
     <script>
       const startButton = document.querySelector('#startButton');
       const muteButton = document.querySelector('#muteButton');
-      const statusDiv = document.querySelector('#status');
       const sceneEl = document.querySelector('a-scene');
       const video = document.querySelector('#ar-video');
 
-      let isTargetVisible = false;
+      // Исправление бага зависания текстуры
+      const fixVideoFreeze = () => {
+        if (!video.paused && video.readyState >= 2) {
+          video.currentTime += 0.01; // Сдвигаем видео, если оно зависло
+        }
+      };
 
-      // Запуск системы
       startButton.addEventListener('click', () => {
         sceneEl.systems['mindar-image-system'].start();
-        
-        // "Толкаем" видео при первом клике
-        video.play().then(() => {
-          video.pause();
-        });
-
+        video.play().then(() => video.pause()); 
         startButton.style.display = 'none';
         muteButton.style.display = 'block';
-        statusDiv.style.display = 'block';
       });
 
-      // Логика звука
       muteButton.addEventListener('click', () => {
         video.muted = !video.muted;
         muteButton.innerText = video.muted ? '🔇' : '🔊';
       });
 
-      // События трекинга
       sceneEl.addEventListener('targetFound', () => {
-        isTargetVisible = true;
-        statusDiv.style.display = 'none';
-        video.play().catch(e => console.log("Ошибка воспроизведения:", e));
+        video.muted = true; // Начинаем всегда без звука для стабильности
+        video.play();
+        // Запускаем микро-сдвиг для "проталкивания" кадров
+        const timer = setInterval(() => {
+          if (video.paused) clearInterval(timer);
+          fixVideoFreeze();
+        }, 1000);
       });
 
       sceneEl.addEventListener('targetLost', () => {
-        isTargetVisible = false;
-        statusDiv.style.display = 'block';
         video.pause();
       });
 
-      // ЦИКЛИЧЕСКАЯ ПРОВЕРКА (каждые 500мс)
-      // Если маркер в кадре, а видео не играет — принудительно запускаем
-      setInterval(() => {
-        if (isTargetVisible && video.paused) {
+      // Принудительный старт при любом тапе по экрану
+      window.addEventListener('touchstart', () => {
+          if (!video.paused) return;
           video.play();
-        }
-      }, 500);
+      });
     </script>
   </body>
 </html>
